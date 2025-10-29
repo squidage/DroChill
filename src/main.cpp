@@ -1,37 +1,47 @@
 #include <Arduino.h>
-#include <BleMouse.h>
+#include <BleAbsMouse.h>
+
 #define MINUTE 60000
-#define X_RANDOM_RANGE 3
-#define Y_RANDOM_RANGE 3
 
-BleMouse bleMouse("DroChill Mouse Jiggler v1");
+BleAbsMouse bleAbsMouse("DroChill Mouse Jiggler v1");
 
-int move_interval = 12; // with lower interval  notify(): << esp_ble_gatts_send_ notify: rc=-1 Unknown ESP_ERR error appears
+int move_interval = 12; // with lower interval notify(): << esp_ble_gatts_send_notify: rc=-1 Unknown ESP_ERR error appears
 int loop_interval = MINUTE * 1;
-uint16_t min_distance, max_distance;
 
-void setup()
-{
-  min_distance = 30;
-  max_distance = 600;
-  bleMouse.begin();
+// Absolute mouse positioning variables (0-10000 range)
+uint16_t current_x = 5000; // Start at center
+uint16_t current_y = 5000; // Start at center
+uint16_t min_move = 30;
+uint16_t max_move = 600;
+
+void setup() {
+  bleAbsMouse.begin();
 }
 
-void loop()
-{
-
-  int distance = random(min_distance, max_distance);
-  int x = random(X_RANDOM_RANGE) - 1;
-  int y = random(Y_RANDOM_RANGE) - 1;
-
-  for (int i = 0; i < distance; i++)
-  {
-    bleMouse.move(x, y, 0);
-    delay(move_interval);
+void loop() {
+  if (bleAbsMouse.isConnected()) {
+    int distance = random(min_move, max_move);
+    int x_dir = random(3) - 1; // -1, 0, or 1
+    int y_dir = random(3) - 1; // -1, 0, or 1
+    
+    // Simulate movement by updating absolute position incrementally
+    for (int i = 0; i < distance; i++) {
+      // Update position, keeping within bounds (0-10000)
+      current_x = constrain(current_x + x_dir, 0, 10000);
+      current_y = constrain(current_y + y_dir, 0, 10000);
+      
+      bleAbsMouse.move(current_x, current_y);
+      delay(move_interval);
+    }
+    
+    // Random right click
+    if (random(0, 7) == 3) {
+      bleAbsMouse.click(current_x, current_y);
+    }
+    
+    // Release after movement
+    bleAbsMouse.release();
   }
-
-  if (random(0, 7) == 3)
-    bleMouse.click(MOUSE_RIGHT);
-
+  
   delay(loop_interval);
 }
